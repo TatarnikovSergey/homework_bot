@@ -1,14 +1,15 @@
 import logging
 import sys
+from http import HTTPStatus
 from logging import StreamHandler
 import os
 import time
 from pprint import pprint
 
 import requests
+
 from dotenv import load_dotenv
 from telebot import TeleBot, apihelper
-
 
 
 load_dotenv()
@@ -30,15 +31,12 @@ RETRY_PERIOD = 600
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
-
 HOMEWORK_VERDICTS = {
     'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
     'reviewing': 'Работа взята на проверку ревьюером.',
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
-
-    
 
 def check_tokens():
     """Проверка доступности секретных ключей"""
@@ -50,26 +48,30 @@ def check_tokens():
         return True
 
 
-
-
-
 def send_message(bot, message):
     """Отправка сообщения телеграмм ботом"""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logger.debug(f'Отправлено сообщение {message}')
-    except Exception as e:
-        logging.error(f'Ошибка {e} отправки сообщения {message} ')
+    except apihelper.ApiException as error:
+        logger.error(f'Ошибка {error} отправки сообщения {message} ')
+
 
 def get_api_answer(timestamp):
     """Запрос к API"""
-    response = requests.get(
-        url=ENDPOINT,
-        headers=HEADERS,
-        params={'from_date': timestamp}
-    )
-    response = response.json()
-    return response
+    try:
+        response = requests.get(
+            url=ENDPOINT,
+            headers=HEADERS,
+            params={'from_date': timestamp}
+        )
+    except requests.RequestException as error:
+        logger.error(f'Ошибка {error} запроса к API')
+        raise ConnectionError
+    if response.status_code != HTTPStatus.OK:
+        logger.error(f'Ошибка {response.status_code} при запросе к API')
+        raise ConnectionError
+    return response.json()
 
 
 def check_response(response):
@@ -79,7 +81,7 @@ def check_response(response):
             logger.debug('Список домашних работ пуст')
         else:
             homework = response['homeworks'][0]
-        # if homework['homework_name'] and homework['status']:
+            # if homework['homework_name'] and homework['status']:
             return homework
     except KeyError:
         raise logger.error('В ответе API нет ключа "homeworks"')
@@ -96,9 +98,6 @@ def parse_status(homework):
         raise logger.error('В ответе нет API ключа "homework_name"')
 
 
-
-
-
 def main():
     """Основная логика работы бота."""
     tokens = check_tokens()
@@ -109,10 +108,10 @@ def main():
 
     # Создаем объект класса бота
     bot = TeleBot(token=TELEGRAM_TOKEN)
-    # timestamp = int(time.time())
-    timestamp = 1714100000
+    timestamp = int(time.time())
+    # timestamp = 1714100000
 
-#     ...
+    #     ...
 
     # while True:
     while tokens:
@@ -120,11 +119,11 @@ def main():
             # breakpoint()
             response = get_api_answer(timestamp)
             current_work = check_response(response)
-            pprint(current_work)
-            if response['homeworks']:
-                last_work = current_work
-                if last_work != current_work:
-                    current_work = last_work
+
+            # if response['homeworks']:
+            #     last_work = current_work
+            # if last_work != current_work:
+            #     current_work = last_work
             # else:
             #     logger.debug('Список домашних работ пуст')
             # homework = check_response(response)
@@ -154,21 +153,22 @@ def main():
         # except TelegramException as e:
         #     message = f'Ошибка в работе Telegram: {e}'
         #     logger.error(message)
-        except IndexError:
-            message = f'Список домашних работ пуст'
-            logger.error(message)
+        # except IndexError:
+        #     message = f'Список домашних работ пуст'
+        #     logger.error(message)
+        # except requests.RequestException as error:
+        #     message = f'Эндпоинт API недоступен: {error}'
+        #     raise ConnectionError(message)
+        # except ExHandler as error:
+        #     message = f'Ошибка в работе программы: {error}'
+        #     logger.error(message)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             send_message(bot, message)
             logger.error(message)
-
-
-        time.sleep(RETRY_PERIOD)
+        finally:
+            time.sleep(RETRY_PERIOD)
 
 
 if __name__ == '__main__':
     main()
-
-
-# get_api_answer(1714100000)
-# get_api_answer(timestamp)
