@@ -1,16 +1,13 @@
 import logging
+import os
 import sys
+import time
 from http import HTTPStatus
 from logging import StreamHandler
-import os
-import time
-from pprint import pprint
 
 import requests
-
 from dotenv import load_dotenv
 from telebot import TeleBot, apihelper
-
 
 load_dotenv()
 
@@ -81,10 +78,10 @@ def check_response(response):
             logger.debug('Список домашних работ пуст')
         else:
             homework = response['homeworks'][0]
-            # if homework['homework_name'] and homework['status']:
-            return homework
+            if homework['homework_name'] and homework['status']:
+                return homework
     except KeyError:
-        raise logger.error('В ответе API нет ключа "homeworks"')
+        raise logger.error('В ответе API отсутствуют необходимые данные')
 
 
 def parse_status(homework):
@@ -95,7 +92,7 @@ def parse_status(homework):
         verdict = HOMEWORK_VERDICTS[homework_status]
         return f'Изменился статус проверки работы "{homework_name}". {verdict}'
     except KeyError:
-        raise logger.error('В ответе нет API ключа "homework_name"')
+        raise logger.error('Ответ API не соответствует документации')
 
 
 def main():
@@ -103,65 +100,20 @@ def main():
     tokens = check_tokens()
     current_work = {}
     current_status = ''
-    last_work = {}
-    last_status = ''
-
-    # Создаем объект класса бота
     bot = TeleBot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
-    # timestamp = 1714100000
 
-    #     ...
-
-    # while True:
     while tokens:
         try:
-            # breakpoint()
             response = get_api_answer(timestamp)
-            current_work = check_response(response)
-
-            # if response['homeworks']:
-            #     last_work = current_work
-            # if last_work != current_work:
-            #     current_work = last_work
-            # else:
-            #     logger.debug('Список домашних работ пуст')
-            # homework = check_response(response)
-
-            # if last_work and last_work['status'] != current_status:
-            #     current_status = last_work['status']
-            #     pprint(current_status)
-            #     send_message(bot, parse_status(last_work))
+            homework = check_response(response)
+            if homework != current_work:
+                current_work = homework
             if current_work and current_work['status'] != current_status:
                 current_status = current_work['status']
-                # print(current_status)
+                logger.debug('Изменился статус домашней работы')
                 send_message(bot, parse_status(current_work))
-
-                # if not work_status:
-                #     work_status = last_work
-                #     pprint(work_status)
-                #     send_message(bot, parse_status(last_work))
-                #     # timestamp = list_work['current_date']
-                #     # pprint(timestamp)
-                #     # breakpoint()
-                # else:
-                #     if last_work == work_status:
-                #         pass
-                #     else:
-                #         work_status = last_work
-        #         #         send_message(bot, parse_status(last_work))
-        # except TelegramException as e:
-        #     message = f'Ошибка в работе Telegram: {e}'
-        #     logger.error(message)
-        # except IndexError:
-        #     message = f'Список домашних работ пуст'
-        #     logger.error(message)
-        # except requests.RequestException as error:
-        #     message = f'Эндпоинт API недоступен: {error}'
-        #     raise ConnectionError(message)
-        # except ExHandler as error:
-        #     message = f'Ошибка в работе программы: {error}'
-        #     logger.error(message)
+                timestamp = current_work['current_date']
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             send_message(bot, message)
