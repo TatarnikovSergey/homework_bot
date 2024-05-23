@@ -36,7 +36,7 @@ HOMEWORK_VERDICTS = {
 
 
 def check_tokens():
-    """Проверка доступности секретных ключей"""
+    """Проверка доступности секретных ключей."""
     tokens = [PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]
     if not all(tokens):
         logging.critical('Invalid tokens')
@@ -46,7 +46,7 @@ def check_tokens():
 
 
 def send_message(bot, message):
-    """Отправка сообщения телеграмм ботом"""
+    """Отправка сообщения телеграмм ботом."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logger.debug(f'Отправлено сообщение {message}')
@@ -55,7 +55,7 @@ def send_message(bot, message):
 
 
 def get_api_answer(timestamp):
-    """Запрос к API"""
+    """Запрос к API."""
     try:
         response = requests.get(
             url=ENDPOINT,
@@ -72,7 +72,7 @@ def get_api_answer(timestamp):
 
 
 def check_response(response):
-    """Проверка наличия в ответе API ключей имени и статуса домашней работы"""
+    """Проверка наличия в ответе API ключей имени и статуса домашней работы."""
     try:
         if not response['homeworks']:
             logger.debug('Список домашних работ пуст')
@@ -85,7 +85,7 @@ def check_response(response):
 
 
 def parse_status(homework):
-    """Подготовка информации о статусе домашней работы"""
+    """Подготовка информации о статусе домашней работы."""
     try:
         homework_name = homework['homework_name']
         homework_status = homework['status']
