@@ -19,9 +19,9 @@ logger = logging.getLogger(__name__)
 handler = StreamHandler(stream=sys.stdout)
 logger.addHandler(handler)
 
-PRACTICUM_TOKEN = os.getenv('P_TOKEN')
-TELEGRAM_TOKEN = os.getenv('T_TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('T_CHAT_ID')
+PRACTICUM_TOKEN: str = os.getenv('P_TOKEN')
+TELEGRAM_TOKEN: str = os.getenv('T_TOKEN')
+TELEGRAM_CHAT_ID: str = os.getenv('T_CHAT_ID')
 
 RETRY_PERIOD = 600
 
@@ -37,16 +37,14 @@ HOMEWORK_VERDICTS = {
 
 def check_tokens():
     """Проверка доступности секретных ключей."""
-    tokens = [PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]
-    if not all(tokens):
-        logging.critical('Invalid tokens')
+    if not all((PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID)):
         return False
-    else:
-        return True
+    return True
 
 
 def send_message(bot, message):
     """Отправка сообщения телеграмм ботом."""
+    logger.debug(f'Отправляем сообщение {message}')
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logger.debug(f'Отправлено сообщение {message}')
@@ -76,6 +74,8 @@ def check_response(response):
     try:
         if not response['homeworks']:
             logger.debug('Список домашних работ пуст')
+        elif type(response) != dict and type(response['homeworks']) != list:
+            logger.error('Ответ API не соответствует документации')
         else:
             homework = response['homeworks'][0]
             if homework['homework_name'] and homework['status']:
@@ -97,13 +97,14 @@ def parse_status(homework):
 
 def main():
     """Основная логика работы бота."""
-    tokens = check_tokens()
+    if not check_tokens():
+        logging.critical('Invalid tokens')
+        sys.exit()
     current_work = {}
     current_status = ''
     bot = TeleBot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
-
-    while tokens:
+    while True:
         try:
             response = get_api_answer(timestamp)
             homework = check_response(response)
@@ -113,7 +114,7 @@ def main():
                 current_status = current_work['status']
                 logger.debug('Изменился статус домашней работы')
                 send_message(bot, parse_status(current_work))
-                timestamp = current_work['current_date']
+                timestamp = response['current_date']
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             send_message(bot, message)
