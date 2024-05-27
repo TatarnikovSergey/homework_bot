@@ -37,9 +37,7 @@ HOMEWORK_VERDICTS = {
 
 def check_tokens():
     """Проверка доступности секретных ключей."""
-    if not all((PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID)):
-        return False
-    return True
+    return all((PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID))
 
 
 def send_message(bot, message):
@@ -72,10 +70,13 @@ def get_api_answer(timestamp):
 def check_response(response):
     """Проверка наличия в ответе API ключей имени и статуса домашней работы."""
     try:
-        if not response['homeworks']:
+        if not (isinstance(response, dict)
+                and isinstance(response['homeworks'], list)):
+            raise TypeError(
+                logger.error('Ответ API не соответствует документации')
+            )
+        elif not response['homeworks']:
             logger.debug('Список домашних работ пуст')
-        elif type(response) != dict and type(response['homeworks']) != list:
-            logger.error('Ответ API не соответствует документации')
         else:
             homework = response['homeworks'][0]
             if homework['homework_name'] and homework['status']:
